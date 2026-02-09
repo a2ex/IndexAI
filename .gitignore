@@ -10,6 +10,7 @@ venv/
 env/
 .env
 credentials/*.json
+backend/credentials/
 sitemaps/*.xml
 node_modules/
 frontend/dist/
