@@ -35,7 +35,7 @@ class IndexationChecker:
                 if result["is_indexed"] is not None:
                     return result
             except Exception as e:
-                logger.error(f"GSC inspection failed: {e}")
+                logger.error(f"GSC inspection failed for {url}: {e}")
 
         # Fallback: Custom Search API
         if self.config.get("custom_search_api_key") and self.config.get("cse_id"):
@@ -48,7 +48,7 @@ class IndexationChecker:
                 if result["is_indexed"] is not None:
                     return result
             except Exception as e:
-                logger.error(f"Custom search check failed: {e}")
+                logger.error(f"Custom Search check failed for {url}: {e}")
 
         # Last resort: direct verification
         return await check_indexed_fallback(url)
@@ -80,7 +80,7 @@ async def build_checker_for_project(db: AsyncSession, project_id: str | UUID) ->
     from app.config import get_global_gsc_credentials
     global_creds = get_global_gsc_credentials()
     return IndexationChecker({
-        "gsc_property": settings.GSC_PROPERTY,
+        "gsc_property": settings.GSC_PROPERTY or "auto",
         "service_account_info": global_creds,
         "custom_search_api_key": settings.GOOGLE_CUSTOM_SEARCH_API_KEY,
         "cse_id": settings.GOOGLE_CSE_ID,
