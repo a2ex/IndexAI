@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getProject, getProjectStatus, exportProjectCsv, addUrls, getCredits, getGscSitemaps, importGscUrls, listServiceAccounts, updateProject } from '../api/client';
+import { getProject, getProjectStatus, exportProjectCsv, addUrls, getCredits, getGscSitemaps, importGscUrls, listServiceAccounts, updateProject, triggerVerification } from '../api/client';
 import type { ProjectDetail as ProjectDetailType, ProjectStatus, GscSitemap, ServiceAccountSummary } from '../api/client';
 import IndexingProgress from '../components/IndexingProgress';
 import URLStatusTable from '../components/URLStatusTable';
@@ -14,6 +14,7 @@ export default function ProjectDetail() {
   const [status, setStatus] = useState<ProjectStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const verifyTriggered = useRef(false);
 
   // Add URLs form
   const [showAddUrls, setShowAddUrls] = useState(false);
@@ -74,12 +75,20 @@ export default function ProjectDetail() {
   };
 
   const hasProcessing = status
-    ? status.pending > 0
+    ? status.pending > 0 || status.verifying > 0
     : false;
 
   useEffect(() => {
     loadData();
   }, [id]);
+
+  // Auto-trigger verification when the project has verifying URLs
+  useEffect(() => {
+    if (id && status && status.verifying > 0 && !verifyTriggered.current) {
+      verifyTriggered.current = true;
+      triggerVerification(id).catch(() => {});
+    }
+  }, [id, status]);
 
   // Load credits when the Add URLs form is opened
   useEffect(() => {
@@ -228,49 +237,39 @@ export default function ProjectDetail() {
       </div>
 
       {hasProcessing && (() => {
-        const pendingCount = status!.urls.filter((u) => u.status === 'pending').length;
-        const submittedCount = status!.urls.filter((u) => u.status === 'submitted').length;
-        const indexingCount = status!.urls.filter((u) => u.status === 'indexing').length;
-        const verifyingCount = status!.urls.filter((u) => u.status === 'verifying').length;
-        const totalProcessing = pendingCount + submittedCount + indexingCount + verifyingCount;
-        const totalUrls = status!.urls.length;
-        const sentCount = submittedCount + indexingCount + verifyingCount;
-        const details: string[] = [];
-        if (pendingCount > 0) details.push(`${pendingCount} en attente`);
-        if (submittedCount > 0) {
-          const pct = totalUrls > 0 ? (submittedCount / totalUrls * 100).toFixed(1) : '0';
-          details.push(`${submittedCount} en cours d'envoi (${pct}%)`);
-        }
-        if (indexingCount > 0) {
-          const pct = sentCount > 0 ? (indexingCount / sentCount * 100).toFixed(1) : '0';
-          details.push(`${indexingCount} en soumission (${pct}%)`);
-        }
-        if (verifyingCount > 0) {
-          const pct = sentCount > 0 ? (verifyingCount / sentCount * 100).toFixed(1) : '0';
-          details.push(`${verifyingCount} en vérification (${pct}%)`);
-        }
+        const verified = status!.indexed + status!.not_indexed + status!.recredited;
+        const total = status!.total;
+        const verifyingCount = status!.verifying;
+        const pendingCount = status!.pending;
+        const progressPct = total > 0 ? (verified / total * 100) : 0;
+        const verifyingPct = total > 0 ? (verifyingCount / total * 100) : 0;
         return (
           <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl overflow-hidden">
             <div className="p-4">
               <div className="flex-1">
                 <p className="text-sm font-medium text-cyan-300">
-                  Indexation in progress — {totalProcessing} URL{totalProcessing > 1 ? 's' : ''}
+                  Verification : {verified} / {total}
+                  {verifyingCount > 0 && ` — ${verifyingCount} en cours`}
                 </p>
                 <p className="text-xs text-cyan-400/70 mt-0.5">
-                  {details.join(' · ')} — auto-refresh 30s
+                  {pendingCount > 0 && `${pendingCount} en attente · `}
+                  auto-refresh 30s
                 </p>
               </div>
             </div>
-            <div className="h-1 overflow-hidden rounded-b-xl">
-              <div
-                className="h-full w-full"
-                style={{
-                  background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #d946ef, #f43f5e, #f97316, #eab308, #22d3ee, #6366f1)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 6s linear infinite',
-                  filter: 'blur(0.5px) brightness(1.3)',
-                }}
-              />
+            <div className="h-2 bg-slate-800 overflow-hidden rounded-b-xl flex">
+              {progressPct > 0 && (
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-700"
+                  style={{ width: `${progressPct}%` }}
+                />
+              )}
+              {verifyingPct > 0 && (
+                <div
+                  className="h-full animate-pulse transition-all duration-700"
+                  style={{ width: `${verifyingPct}%`, backgroundColor: '#3b82f6' }}
+                />
+              )}
             </div>
           </div>
         );
@@ -284,6 +283,7 @@ export default function ProjectDetail() {
         recredited={status.recredited}
         successRate={status.success_rate}
         credits={0}
+        indexedByService={status.indexed_by_service}
       />
 
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">

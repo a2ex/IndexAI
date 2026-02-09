@@ -197,6 +197,8 @@ export interface ProjectStatus {
   pending: number;
   not_indexed: number;
   recredited: number;
+  verifying: number;
+  indexed_by_service: number;
   success_rate: number;
   urls: URLEntry[];
   urls_total: number;
@@ -276,6 +278,7 @@ export interface MethodStats {
 export interface IndexingStats {
   speed: IndexingSpeedStats;
   methods: Record<string, MethodStats>;
+  indexed_by_service: number;
 }
 
 export const getIndexingStats = () =>
@@ -309,6 +312,12 @@ export const resubmitUrl = (urlId: string) =>
 
 export const checkUrl = (urlId: string) =>
   request<{ message: string }>(`/urls/${urlId}/check`, { method: 'POST' });
+
+export const deleteUrl = (urlId: string) =>
+  request<{ message: string; credit_refunded: boolean }>(`/urls/${urlId}`, { method: 'DELETE' });
+
+export const triggerVerification = (projectId: string) =>
+  request<{ queued: number }>(`/projects/${projectId}/verify-now`, { method: 'POST' });
 
 // Credits
 export const getCredits = () =>

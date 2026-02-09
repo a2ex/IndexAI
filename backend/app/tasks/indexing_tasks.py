@@ -58,6 +58,7 @@ async def _mark_already_indexed(db: AsyncSession, url_obj: URL, user_id, check_r
     url_obj.is_indexed = True
     url_obj.indexed_at = now
     url_obj.status = URLStatus.indexed
+    url_obj.pre_indexed = True
     url_obj.last_checked_at = now
     url_obj.check_count += 1
     url_obj.check_method = check_result.get("method")
@@ -108,6 +109,10 @@ async def _submit_urls(project_id: str, url_ids: list[str], indexnow_config: dic
             if not url_obj:
                 continue
 
+            # Set verifying status during pre-check
+            url_obj.status = URLStatus.verifying
+            await db.commit()
+
             # Pre-check: is this URL already indexed?
             try:
                 check_result = await checker.check_url(url_obj.url)
@@ -121,7 +126,7 @@ async def _submit_urls(project_id: str, url_ids: list[str], indexnow_config: dic
                 logger.warning(f"Pre-check failed for {url_obj.url}: {e}, submitting anyway")
 
             # Not indexed — submit for indexing
-            url_obj.status = "submitted"
+            url_obj.status = URLStatus.submitted
             url_obj.submitted_at = _utcnow()
             await db.commit()
 
@@ -142,6 +147,9 @@ async def _submit_urls(project_id: str, url_ids: list[str], indexnow_config: dic
 def submit_urls_for_indexing(project_id: str, url_ids: list[str], indexnow_config: dict | None):
     """Celery task to submit URLs for indexing via method queue."""
     asyncio.run(_submit_urls(project_id, url_ids, indexnow_config))
+    # Trigger immediate verification for freshly submitted URLs
+    from app.tasks.verification_tasks import check_fresh_urls
+    check_fresh_urls.delay()
 
 
 async def _submit_single_url(url_id: str):
@@ -225,6 +233,10 @@ async def _process_pending_urls():
                 checker_cache[pid] = await _build_checker(db, pid)
             checker = checker_cache[pid]
 
+            # Set verifying status during pre-check
+            url_obj.status = URLStatus.verifying
+            await db.commit()
+
             # Pre-check
             try:
                 check_result = await checker.check_url(url_obj.url)
@@ -236,7 +248,7 @@ async def _process_pending_urls():
                 await db.rollback()
                 logger.warning(f"Pre-check failed for {url_obj.url}: {e}, submitting anyway")
 
-            url_obj.status = "submitted"
+            url_obj.status = URLStatus.submitted
             url_obj.submitted_at = _utcnow()
             await db.commit()
 
@@ -419,6 +431,9 @@ async def _process_method_queue():
                     # Transition to verifying after the last method (google_api)
                     if method == "google_api" and success and url_obj.status == URLStatus.indexing:
                         url_obj.status = URLStatus.verifying
+                        # Trigger immediate verification
+                        from app.tasks.verification_tasks import check_single_url
+                        check_single_url.delay(str(url_obj.id))
 
                     await db.commit()
                     processed += 1

@@ -12,16 +12,11 @@ from app.services.notifications import notify_url_indexed
 
 logger = logging.getLogger(__name__)
 
-_engine = None
-_session_factory = None
-
-
 def _get_session_factory():
-    global _engine, _session_factory
-    if _engine is None:
-        _engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-    return _session_factory
+    # Always create a fresh engine — solo pool uses a new event loop per asyncio.run()
+    # so cached asyncpg connections become attached to a stale loop
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def _process_url(db: AsyncSession, url_obj: URL, checker: IndexationChecker, label: str = ""):
@@ -54,6 +49,7 @@ async def _process_url(db: AsyncSession, url_obj: URL, checker: IndexationChecke
             )
         else:
             url_obj.status = URLStatus.not_indexed
+            url_obj.verified_not_indexed = True
             logger.info(f"URL not indexed yet{label}: {url_obj.url}")
 
         await db.commit()
@@ -61,6 +57,31 @@ async def _process_url(db: AsyncSession, url_obj: URL, checker: IndexationChecke
     except Exception as e:
         logger.error(f"Verification failed for {url_obj.url}: {e}")
         await db.rollback()
+
+
+async def _verify_project_urls(project_id: str, url_ids: list[str]):
+    """Check indexation for a list of URLs belonging to a single project."""
+    session_factory = _get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(
+            select(URL).where(URL.id.in_(url_ids), URL.project_id == project_id)
+        )
+        urls = result.scalars().all()
+        if not urls:
+            logger.info(f"No URLs found for project {project_id}")
+            return
+
+        checker = await build_checker_for_project(db, project_id)
+        for url_obj in urls:
+            await _process_url(db, url_obj, checker)
+
+        logger.info(f"Verified {len(urls)} URLs for project {project_id}")
+
+
+@celery.task(name="app.tasks.verification_tasks.verify_project_urls")
+def verify_project_urls(project_id: str, url_ids: list[str]):
+    """Verify URLs for a single project (dispatched per-project)."""
+    asyncio.run(_verify_project_urls(project_id, url_ids))
 
 
 async def _check_urls(min_age_days: int = 0, max_age_days: int = 1):
@@ -85,18 +106,15 @@ async def _check_urls(min_age_days: int = 0, max_age_days: int = 1):
             logger.info(f"No URLs to check for age {min_age_days}-{max_age_days} days")
             return
 
-        # Group URLs by project_id
-        by_project: dict[str, list[URL]] = defaultdict(list)
+        # Group URLs by project_id and dispatch a task per project
+        by_project: dict[str, list[str]] = defaultdict(list)
         for url_obj in urls:
-            by_project[str(url_obj.project_id)].append(url_obj)
+            by_project[str(url_obj.project_id)].append(str(url_obj.id))
 
-        # Build a checker per project and process
-        for project_id, project_urls in by_project.items():
-            checker = await build_checker_for_project(db, project_id)
-            for url_obj in project_urls:
-                await _process_url(db, url_obj, checker)
+        for project_id, url_ids in by_project.items():
+            verify_project_urls.delay(project_id, url_ids)
 
-        logger.info(f"Checked {len(urls)} URLs ({min_age_days}-{max_age_days} days old)")
+        logger.info(f"Dispatched verification for {len(urls)} URLs across {len(by_project)} projects ({min_age_days}-{max_age_days} days old)")
 
 
 async def _check_single_url(url_id: str):
@@ -142,17 +160,15 @@ async def _check_fresh_urls():
             logger.info("No fresh URLs to check (<6h)")
             return
 
-        # Group URLs by project_id
-        by_project: dict[str, list[URL]] = defaultdict(list)
+        # Group URLs by project_id and dispatch a task per project
+        by_project: dict[str, list[str]] = defaultdict(list)
         for url_obj in urls:
-            by_project[str(url_obj.project_id)].append(url_obj)
+            by_project[str(url_obj.project_id)].append(str(url_obj.id))
 
-        for project_id, project_urls in by_project.items():
-            checker = await build_checker_for_project(db, project_id)
-            for url_obj in project_urls:
-                await _process_url(db, url_obj, checker, label=" (fresh check)")
+        for project_id, url_ids in by_project.items():
+            verify_project_urls.delay(project_id, url_ids)
 
-        logger.info(f"Fresh check: verified {len(urls)} URLs (<6h old)")
+        logger.info(f"Fresh check: dispatched {len(urls)} URLs across {len(by_project)} projects (<6h old)")
 
 
 @celery.task(name="app.tasks.verification_tasks.check_fresh_urls")

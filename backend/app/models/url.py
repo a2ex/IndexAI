@@ -50,6 +50,12 @@ class URL(Base):
     credit_debited: Mapped[bool] = mapped_column(Boolean, default=False)
     credit_refunded: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Pre-check: was this URL already indexed before we tried?
+    pre_indexed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Was this URL ever confirmed as NOT indexed by a verification check?
+    verified_not_indexed: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Timestamps
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

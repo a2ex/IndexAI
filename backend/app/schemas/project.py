@@ -113,6 +113,8 @@ class ProjectStatus(BaseModel):
     pending: int
     not_indexed: int
     recredited: int
+    verifying: int = 0
+    indexed_by_service: int = 0
     success_rate: float
     urls: list[URLResponse]
     urls_total: int = 0  # total matching filter (for pagination)
@@ -194,3 +196,4 @@ class MethodStats(BaseModel):
 class IndexingStatsResponse(BaseModel):
     speed: IndexingSpeedStats
     methods: dict[str, MethodStats]
+    indexed_by_service: int = 0

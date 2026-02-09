@@ -8,6 +8,7 @@ interface StatsCardsProps {
   recredited: number;
   successRate: number;
   credits: number;
+  indexedByService?: number;
 }
 
 const cards = [
@@ -18,7 +19,7 @@ const cards = [
   { key: 'recredited', label: 'Recredited', icon: RefreshCw, color: 'text-violet-400', bg: 'bg-violet-500/10' },
 ];
 
-export default function StatsCards({ total, indexed, notIndexed, pending, recredited, successRate, credits }: StatsCardsProps) {
+export default function StatsCards({ total, indexed, notIndexed, pending, recredited, successRate, credits, indexedByService }: StatsCardsProps) {
   const values: Record<string, number> = { total, indexed, notIndexed, pending, recredited };
 
   return (
@@ -32,6 +33,9 @@ export default function StatsCards({ total, indexed, notIndexed, pending, recred
             <div>
               <p className="text-2xl font-bold text-white">{values[key]}</p>
               <p className="text-xs text-slate-500">{label}</p>
+              {key === 'indexed' && indexedByService != null && indexedByService > 0 && (
+                <p className="text-[10px] text-emerald-400/80 mt-0.5">+{indexedByService} grâce à IndexAI</p>
+              )}
             </div>
           </div>
         </div>

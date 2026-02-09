@@ -1,13 +1,15 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import select, delete as sa_delete, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.api.auth import get_current_user
 from app.rate_limit import limiter
 from app.models.user import User
-from app.models.url import URL
+from app.models.url import URL, URLStatus
 from app.models.project import Project
+from app.models.credit import CreditTransaction, TransactionType
+from app.models.indexing_log import IndexingLog
 from app.schemas.url import URLResponse
 
 router = APIRouter(prefix="/api/urls", tags=["urls"])
@@ -84,3 +86,54 @@ async def check_url(
     check_single_url.delay(str(url_id))
 
     return {"message": "Verification launched", "url_id": str(url_id)}
+
+
+@router.delete("/{url_id}")
+@limiter.limit("30/minute")
+async def delete_url(
+    request: Request,
+    url_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a URL from the project and refund the credit if it was debited."""
+    result = await db.execute(
+        select(URL)
+        .join(Project)
+        .where(URL.id == url_id, Project.user_id == user.id)
+    )
+    url_obj = result.scalars().first()
+    if not url_obj:
+        raise HTTPException(status_code=404, detail="URL not found")
+
+    refunded = False
+    if url_obj.credit_debited and not url_obj.credit_refunded:
+        user.credit_balance += 1
+        url_obj.credit_refunded = True
+        db.add(CreditTransaction(
+            user_id=user.id,
+            amount=1,
+            type=TransactionType.refund,
+            description="URL removed from project",
+            url_id=url_obj.id,
+        ))
+        refunded = True
+
+    # Clean up related records before deleting the URL
+    await db.execute(sa_delete(IndexingLog).where(IndexingLog.url_id == url_obj.id))
+    await db.execute(
+        sa_update(CreditTransaction)
+        .where(CreditTransaction.url_id == url_obj.id)
+        .values(url_id=None)
+    )
+
+    # Update project total_urls
+    proj_result = await db.execute(select(Project).where(Project.id == url_obj.project_id))
+    project = proj_result.scalars().first()
+    if project and project.total_urls > 0:
+        project.total_urls -= 1
+
+    await db.delete(url_obj)
+    await db.commit()
+
+    return {"message": "URL deleted", "url_id": str(url_id), "credit_refunded": refunded}

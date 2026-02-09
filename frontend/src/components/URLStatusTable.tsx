@@ -1,8 +1,8 @@
-import { resubmitUrl, checkUrl } from '../api/client';
+import { resubmitUrl, checkUrl, deleteUrl } from '../api/client';
 import type { URLEntry } from '../api/client';
 import {
   RefreshCw, ExternalLink, Search, Zap, Radio, Bell, Archive, Link,
-  Clock, Loader2, CheckCircle, XCircle, RotateCcw, SearchCheck,
+  Clock, Loader2, CheckCircle, XCircle, RotateCcw, SearchCheck, Trash2,
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 
@@ -185,6 +185,8 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
   const [resubmittedId, setResubmittedId] = useState<string | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [checkedId, setCheckedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const filtered = serverFiltered ? urls : urls.filter((u) => {
@@ -222,6 +224,21 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
       setTimeout(() => setActionError(null), 3000);
     } finally {
       setCheckingId(null);
+    }
+  }, [onRefresh]);
+
+  const handleDelete = useCallback(async (urlId: string) => {
+    setDeletingId(urlId);
+    setActionError(null);
+    try {
+      await deleteUrl(urlId);
+      setConfirmDeleteId(null);
+      onRefresh?.();
+    } catch (e: any) {
+      setActionError(e.message || 'Delete failed');
+      setTimeout(() => setActionError(null), 3000);
+    } finally {
+      setDeletingId(null);
     }
   }, [onRefresh]);
 
@@ -361,6 +378,37 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                         Vérifier si cette URL est indexée
                       </span>
+                    </span>
+                    <span className="relative group">
+                      {confirmDeleteId === u.id ? (
+                        <span className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => handleDelete(u.id)}
+                            disabled={deletingId === u.id}
+                            className="text-rose-400 hover:text-rose-300 text-xs font-medium px-1.5 py-0.5 bg-rose-500/10 rounded disabled:opacity-50 transition-colors"
+                          >
+                            {deletingId === u.id ? <Loader2 size={12} className="animate-spin" /> : 'Oui'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-slate-400 hover:text-slate-300 text-xs px-1.5 py-0.5 transition-colors"
+                          >
+                            Non
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setConfirmDeleteId(u.id)}
+                            className="text-slate-500 hover:text-rose-400 p-1 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            Supprimer cette URL
+                          </span>
+                        </>
+                      )}
                     </span>
                   </div>
                 </td>

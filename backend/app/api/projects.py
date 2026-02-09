@@ -248,7 +248,19 @@ async def get_indexing_stats(
             rate=round(success / total * 100, 1) if total else 0,
         )
 
-    return IndexingStatsResponse(speed=speed, methods=methods)
+    # Count URLs indexed by the service: confirmed not-indexed at least once, then indexed
+    ibs_result = await db.execute(
+        select(func.count(URLModel.id))
+        .join(Project)
+        .where(
+            Project.user_id == user.id,
+            URLModel.status == URLStatus.indexed,
+            URLModel.verified_not_indexed == True,
+        )
+    )
+    indexed_by_service = ibs_result.scalar() or 0
+
+    return IndexingStatsResponse(speed=speed, methods=methods, indexed_by_service=indexed_by_service)
 
 
 @router.get("/stats/daily")
@@ -644,10 +656,21 @@ async def get_project_status(
 
     total = sum(counts.values())
     indexed = counts.get("indexed", 0)
-    pending = sum(counts.get(s, 0) for s in ("pending", "submitted", "indexing", "verifying"))
+    verifying = counts.get("verifying", 0)
+    pending = sum(counts.get(s, 0) for s in ("pending", "submitted", "indexing"))
     not_indexed = counts.get("not_indexed", 0)
     recredited = counts.get("recredited", 0)
     success_rate = (indexed / total * 100) if total > 0 else 0.0
+
+    # Count URLs indexed by the service: confirmed not-indexed at least once, then indexed
+    ibs_result = await db.execute(
+        select(func.count(URL.id)).where(
+            URL.project_id == project_id,
+            URL.status == URLStatus.indexed,
+            URL.verified_not_indexed == True,
+        )
+    )
+    indexed_by_service = ibs_result.scalar() or 0
 
     # Build paginated URL query with optional filters
     url_query = select(URL).where(URL.project_id == project_id)
@@ -678,12 +701,44 @@ async def get_project_status(
         pending=pending,
         not_indexed=not_indexed,
         recredited=recredited,
+        verifying=verifying,
+        indexed_by_service=indexed_by_service,
         success_rate=round(success_rate, 1),
         urls=urls,
         urls_total=urls_total,
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/{project_id}/verify-now")
+@limiter.limit("5/minute")
+async def verify_now(
+    request: Request,
+    project_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Trigger immediate verification for a project's pending URLs."""
+    proj_result = await db.execute(
+        select(Project.id).where(Project.id == project_id, Project.user_id == user.id)
+    )
+    if not proj_result.scalars().first():
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    result = await db.execute(
+        select(URL.id).where(
+            URL.project_id == project_id,
+            URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.verifying]),
+        )
+    )
+    url_ids = [str(uid) for uid in result.scalars().all()]
+
+    if url_ids:
+        from app.tasks.verification_tasks import verify_project_urls
+        verify_project_urls.delay(str(project_id), url_ids)
+
+    return {"queued": len(url_ids)}
 
 
 @router.get("/{project_id}/export/csv")

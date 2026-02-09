@@ -74,6 +74,7 @@ export default function Dashboard() {
         recredited={totalRecredited}
         successRate={successRate}
         credits={credits}
+        indexedByService={indexingStats?.indexed_by_service}
       />
 
       {/* Active Tasks & Indexation Status Widget */}
