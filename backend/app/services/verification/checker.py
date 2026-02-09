@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.services.verification.custom_search import check_indexed_custom_search
-from app.services.verification.gsc_inspection import check_indexed_gsc_inspection
+from app.services.verification.gsc_inspection import check_indexed_gsc_inspection, QuotaExhaustedException
 from app.services.verification.fallback_check import check_indexed_fallback
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,8 @@ class IndexationChecker:
                 )
                 if result["is_indexed"] is not None:
                     return result
+            except QuotaExhaustedException:
+                raise
             except Exception as e:
                 logger.error(f"GSC inspection failed for {url}: {e}")
 
@@ -47,6 +49,8 @@ class IndexationChecker:
                 )
                 if result["is_indexed"] is not None:
                     return result
+            except QuotaExhaustedException:
+                raise
             except Exception as e:
                 logger.error(f"Custom Search check failed for {url}: {e}")
 

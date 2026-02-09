@@ -1,5 +1,8 @@
 import logging
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+from app.services.verification.gsc_inspection import QuotaExhaustedException
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,16 @@ def check_indexed_custom_search(url: str, api_key: str, cse_id: str) -> dict:
             "total_results": int(
                 result.get("searchInformation", {}).get("totalResults", 0)
             ),
+        }
+
+    except HttpError as e:
+        if e.resp.status == 429 or "rateLimitExceeded" in str(e):
+            raise QuotaExhaustedException("custom_search", str(e))
+        logger.error(f"Custom Search check failed for {url}: {e}")
+        return {
+            "is_indexed": None,
+            "error": str(e),
+            "method": "custom_search",
         }
 
     except Exception as e:

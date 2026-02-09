@@ -8,6 +8,7 @@ from celery_app import celery
 from app.config import settings
 from app.models.url import URL, URLStatus
 from app.services.verification.checker import IndexationChecker, build_checker_for_project
+from app.services.verification.gsc_inspection import QuotaExhaustedException
 from app.services.notifications import notify_url_indexed
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,9 @@ async def _process_url(db: AsyncSession, url_obj: URL, checker: IndexationChecke
 
         await db.commit()
 
+    except QuotaExhaustedException:
+        await db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Verification failed for {url_obj.url}: {e}")
         await db.rollback()
@@ -72,10 +76,16 @@ async def _verify_project_urls(project_id: str, url_ids: list[str]):
             return
 
         checker = await build_checker_for_project(db, project_id)
+        verified = 0
         for url_obj in urls:
-            await _process_url(db, url_obj, checker)
+            try:
+                await _process_url(db, url_obj, checker)
+                verified += 1
+            except QuotaExhaustedException as e:
+                logger.warning(f"GSC quota exhausted for project {project_id}, skipping {len(urls) - verified} remaining URLs: {e}")
+                break
 
-        logger.info(f"Verified {len(urls)} URLs for project {project_id}")
+        logger.info(f"Verified {verified}/{len(urls)} URLs for project {project_id}")
 
 
 @celery.task(name="app.tasks.verification_tasks.verify_project_urls")
@@ -128,7 +138,10 @@ async def _check_single_url(url_id: str):
             return
 
         checker = await build_checker_for_project(db, str(url_obj.project_id))
-        await _process_url(db, url_obj, checker)
+        try:
+            await _process_url(db, url_obj, checker)
+        except QuotaExhaustedException as e:
+            logger.warning(f"GSC quota exhausted for single URL check {url_id}: {e}")
 
 
 @celery.task(name="app.tasks.verification_tasks.check_single_url")

@@ -9,6 +9,13 @@ logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/webmasters"]
 
+
+class QuotaExhaustedException(Exception):
+    """Raised when the GSC API quota is exhausted (HTTP 429)."""
+    def __init__(self, property_url: str, message: str = ""):
+        self.property_url = property_url
+        super().__init__(f"GSC quota exhausted for {property_url}: {message}")
+
 # Caches
 _sites_cache: dict[str, list[str]] = {}
 _creds_cache: dict[str, service_account.Credentials] = {}
@@ -101,6 +108,15 @@ def check_indexed_gsc_inspection(
             "method": "gsc_inspection",
         }
     else:
+        error_code = data.get("error", {}).get("code")
+        error_status = data.get("error", {}).get("status", "")
+
+        if error_code == 429 or error_status == "RESOURCE_EXHAUSTED":
+            raise QuotaExhaustedException(
+                matched_property,
+                data.get("error", {}).get("message", ""),
+            )
+
         logger.error(f"GSC Inspection failed for {url} (property={matched_property}): {data}")
         return {
             "is_indexed": None,
