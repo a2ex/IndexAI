@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FolderOpen, PlusCircle, Coins, Settings, LogOut } from 'lucide-react';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { UserProfile } from '../api/client';
 
 const nav = [

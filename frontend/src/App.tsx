@@ -8,7 +8,7 @@ import Credits from './pages/Credits';
 import Settings from './pages/Settings';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import { isAuthenticated as checkAuth, refreshToken, logout as apiLogout, clearAccessToken, getMe, type UserProfile } from './api/client';
+import { refreshToken, logout as apiLogout, getMe, type UserProfile } from './api/client';
 import useWebNotifications from './hooks/useWebNotifications';
 
 export default function App() {
