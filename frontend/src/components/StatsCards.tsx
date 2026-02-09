@@ -23,15 +23,15 @@ export default function StatsCards({ total, indexed, notIndexed, pending, recred
   const values: Record<string, number> = { total, indexed, notIndexed, pending, recredited };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
       {cards.map(({ key, label, icon: Icon, color, bg }) => (
-        <div key={key} className="bg-slate-900 rounded-xl border border-slate-800 p-5">
+        <div key={key} className="bg-slate-900 rounded-xl border border-slate-800 p-3 md:p-5">
           <div className="flex items-center gap-3">
             <div className={`${bg} p-2 rounded-lg`}>
               <Icon size={20} className={color} />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{values[key]}</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{values[key]}</p>
               <p className="text-xs text-slate-500">{label}</p>
               {key === 'indexed' && indexedByService != null && indexedByService > 0 && (
                 <p className="text-[10px] text-emerald-400/80 mt-0.5">+{indexedByService} grâce à IndexAI</p>
@@ -40,13 +40,13 @@ export default function StatsCards({ total, indexed, notIndexed, pending, recred
           </div>
         </div>
       ))}
-      <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 md:p-5">
         <div className="flex items-center gap-3">
           <div className="bg-cyan-500/10 p-2 rounded-lg">
             <span className="text-cyan-400 font-bold text-sm">{successRate}%</span>
           </div>
           <div>
-            <p className="text-2xl font-bold text-white">{credits}</p>
+            <p className="text-xl md:text-2xl font-bold text-white">{credits}</p>
             <p className="text-xs text-slate-500">Credits left</p>
           </div>
         </div>

@@ -152,7 +152,7 @@ export default function Dashboard() {
                               {p.indexed_count}/{p.total_urls} indexées ({pctIndexed}%) · {p.pending_count} en cours
                             </p>
                           </div>
-                          <div className="w-24">
+                          <div className="w-16 sm:w-24">
                             <IndexingProgress indexed={p.indexed_count} total={p.total_urls} />
                           </div>
                         </Link>
@@ -212,7 +212,7 @@ export default function Dashboard() {
                     {p.indexed_count}/{p.total_urls} indexed ({p.total_urls > 0 ? Math.round(p.indexed_count / p.total_urls * 100) : 0}%)
                   </p>
                 </div>
-                <div className="w-48">
+                <div className="hidden sm:block w-32 md:w-48">
                   <IndexingProgress indexed={p.indexed_count} total={p.total_urls} />
                 </div>
               </Link>

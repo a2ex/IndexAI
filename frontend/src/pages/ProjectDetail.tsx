@@ -578,7 +578,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Server-side search & filter */}
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <input
             type="text"
             placeholder="Search URLs..."

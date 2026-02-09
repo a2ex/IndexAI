@@ -52,8 +52,8 @@ export default function Login({ onLogin }: Props) {
   const handleSubmit = mode === 'login' ? handleLogin : handleRegister;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 w-full max-w-md">
         <h1 className="text-2xl font-bold text-white mb-2">IndexAI</h1>
         <p className="text-slate-500 text-sm mb-6">SEO Indexation Service</p>
 

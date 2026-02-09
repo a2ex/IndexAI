@@ -292,8 +292,8 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
         </div>
       )}
 
-      <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-slate-800/50 border-b border-slate-800">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-slate-400">URL</th>

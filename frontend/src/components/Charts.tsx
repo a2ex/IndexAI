@@ -20,9 +20,9 @@ export default function Charts({ data }: Props) {
   }
 
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+    <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6">
       <h3 className="text-sm font-medium text-slate-300 mb-4">Indexation Progress</h3>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={250}>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} />
