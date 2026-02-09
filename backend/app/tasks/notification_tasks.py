@@ -13,16 +13,11 @@ from app.services.notifications import send_email_digest
 
 logger = logging.getLogger(__name__)
 
-_engine = None
-_session_factory = None
-
-
 def _get_session_factory():
-    global _engine, _session_factory
-    if _engine is None:
-        _engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-    return _session_factory
+    # Always create a fresh engine — each asyncio.run() creates a new event loop,
+    # so cached asyncpg connections become attached to a stale loop
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def _send_daily_digest():
