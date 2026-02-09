@@ -7,7 +7,8 @@ from fastapi.responses import Response, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import select
+from sqlalchemy import select, text
+import sentry_sdk
 from app.config import settings
 from app.database import engine, Base
 from app.api import projects, urls, credits, users, admin, auth_routes, notifications, service_accounts
@@ -17,6 +18,13 @@ from app.services.indexing.social_signals import generate_rss_feed
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
+
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment="production" if "railway" in settings.DATABASE_URL else "development",
+    )
 
 app = FastAPI(
     title="Indexing Service API",
@@ -75,7 +83,32 @@ if _static_dir and _static_dir.is_dir():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    checks = {}
+
+    # Check database
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {e}"
+
+    # Check Redis
+    try:
+        import redis as redis_lib
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        r.ping()
+        checks["redis"] = "ok"
+        r.close()
+    except Exception as e:
+        checks["redis"] = f"error: {e}"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    status_code = 200 if all_ok else 503
+    return JSONResponse(
+        content={"status": "healthy" if all_ok else "unhealthy", "checks": checks},
+        status_code=status_code,
+    )
 
 
 @app.get("/sitemaps/{project_id}.xml")

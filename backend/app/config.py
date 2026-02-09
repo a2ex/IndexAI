@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     BASE_URL: str = "http://localhost:8000"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     STATIC_DIR: str = ""
+    SENTRY_DSN: str = ""
 
     # SMTP settings for email digest
     SMTP_HOST: str = ""

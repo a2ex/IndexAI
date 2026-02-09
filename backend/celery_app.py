@@ -1,6 +1,14 @@
 from celery import Celery
 from celery.schedules import crontab
+import sentry_sdk
 from app.config import settings
+
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment="production" if "railway" in settings.DATABASE_URL else "development",
+    )
 
 celery = Celery(
     "indexing_service",
