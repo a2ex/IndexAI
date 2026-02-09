@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.rate_limit import limiter
 from app.models.user import User
+from app.api.auth import get_current_user
 from app.schemas.user import UserRegister, UserLogin, TokenResponse
 from app.core.security import (
     hash_password,
@@ -114,6 +115,17 @@ async def refresh(
     _set_refresh_cookie(response, new_refresh)
 
     return TokenResponse(access_token=access_token)
+
+
+@router.get("/me")
+async def get_me(request: Request, user: User = Depends(get_current_user)):
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "credit_balance": user.credit_balance,
+        "is_admin": user.is_admin,
+        "created_at": user.created_at.isoformat(),
+    }
 
 
 @router.post("/logout")

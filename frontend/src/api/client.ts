@@ -121,6 +121,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  credit_balance: number;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export const getMe = () => request<UserProfile>('/auth/me');
+
 export interface User {
   id: string;
   email: string;
@@ -135,7 +145,10 @@ export interface ProjectSummary {
   status: string;
   total_urls: number;
   indexed_count: number;
-  failed_count: number;
+  not_indexed_count: number;
+  recredited_count: number;
+  pending_count: number;
+  main_domain: string | null;
   created_at: string;
 }
 
@@ -148,6 +161,8 @@ export interface URLEntry {
   sitemap_ping_attempts: number;
   social_signal_attempts: number;
   backlink_ping_attempts: number;
+  google_api_last_status: string | null;
+  indexnow_last_status: string | null;
   is_indexed: boolean;
   indexed_at: string | null;
   last_checked_at: string | null;
@@ -169,6 +184,8 @@ export interface ProjectDetail {
   total_urls: number;
   indexed_count: number;
   failed_count: number;
+  main_domain: string | null;
+  gsc_service_account_id: string | null;
   created_at: string;
   updated_at: string;
   urls: URLEntry[];
@@ -182,6 +199,9 @@ export interface ProjectStatus {
   recredited: number;
   success_rate: number;
   urls: URLEntry[];
+  urls_total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface CreditBalance {
@@ -209,8 +229,18 @@ export const listProjects = () =>
 export const getProject = (id: string) =>
   request<ProjectDetail>(`/projects/${id}`);
 
-export const getProjectStatus = (id: string) =>
-  request<ProjectStatus>(`/projects/${id}/status`);
+export const getProjectStatus = (
+  id: string,
+  opts?: { limit?: number; offset?: number; status?: string; search?: string },
+) => {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  if (opts?.offset) params.set('offset', String(opts.offset));
+  if (opts?.status && opts.status !== 'all') params.set('status', opts.status);
+  if (opts?.search) params.set('search', opts.search);
+  const qs = params.toString();
+  return request<ProjectStatus>(`/projects/${id}/status${qs ? `?${qs}` : ''}`);
+};
 
 export const createProject = (data: { name: string; urls: string[]; description?: string }) =>
   request<ProjectDetail>('/projects', { method: 'POST', body: JSON.stringify(data) });
@@ -224,15 +254,61 @@ export interface DailyStats {
 export const getDailyStats = (days = 30) =>
   request<DailyStats[]>(`/projects/stats/daily?days=${days}`);
 
+export interface IndexingSpeedStats {
+  indexed_24h: number;
+  indexed_48h: number;
+  indexed_72h: number;
+  indexed_7d: number;
+  total_submitted: number;
+  pct_24h: number;
+  pct_48h: number;
+  pct_72h: number;
+  pct_7d: number;
+}
+
+export interface MethodStats {
+  total_attempts: number;
+  success: number;
+  error: number;
+  rate: number;
+}
+
+export interface IndexingStats {
+  speed: IndexingSpeedStats;
+  methods: Record<string, MethodStats>;
+}
+
+export const getIndexingStats = () =>
+  request<IndexingStats>(`/projects/stats/indexing`);
+
 export const addUrls = (projectId: string, urls: string[]) =>
   request<{ added: number; total_urls: number; credits_debited: number }>(
     `/projects/${projectId}/urls`,
     { method: 'POST', body: JSON.stringify({ urls }) },
   );
 
+export const updateProject = (id: string, data: { gsc_service_account_id: string | null }) =>
+  request<{ ok: boolean; gsc_service_account_id: string | null }>(
+    `/projects/${id}`,
+    { method: 'PATCH', body: JSON.stringify(data) },
+  );
+
+// Service Accounts
+export interface ServiceAccountSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const listServiceAccounts = () =>
+  request<ServiceAccountSummary[]>('/service-accounts');
+
 // URLs
 export const resubmitUrl = (urlId: string) =>
   request<{ message: string }>(`/urls/${urlId}/resubmit`, { method: 'POST' });
+
+export const checkUrl = (urlId: string) =>
+  request<{ message: string }>(`/urls/${urlId}/check`, { method: 'POST' });
 
 // Credits
 export const getCredits = () =>
@@ -254,6 +330,32 @@ export interface RecentNotification {
 
 export const getRecentNotifications = (since?: string) =>
   request<RecentNotification[]>(`/notifications/recent${since ? `?since=${encodeURIComponent(since)}` : ''}`);
+
+// GSC Sitemaps
+export interface GscSitemap {
+  path: string;
+  lastSubmitted: string;
+  urls_count: number;
+  isPending: boolean;
+  imported: boolean;
+  imported_urls: number;
+  imported_at: string | null;
+}
+
+export interface GscImportResult {
+  added: number;
+  duplicates_skipped: number;
+  credits_debited: number;
+}
+
+export const getGscSitemaps = (projectId: string) =>
+  request<GscSitemap[]>(`/projects/${projectId}/gsc-sitemaps`);
+
+export const importGscUrls = (projectId: string, sitemapUrls: string[]) =>
+  request<GscImportResult>(
+    `/projects/${projectId}/import-gsc`,
+    { method: 'POST', body: JSON.stringify({ sitemap_urls: sitemapUrls }) },
+  );
 
 // Export
 export async function exportProjectCsv(projectId: string): Promise<void> {
