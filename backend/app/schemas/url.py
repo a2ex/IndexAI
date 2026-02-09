@@ -29,6 +29,8 @@ class URLResponse(BaseModel):
     check_method: str | None
     indexed_title: str | None
     indexed_snippet: str | None
+    google_api_last_status: str | None
+    indexnow_last_status: str | None
     credit_debited: bool
     credit_refunded: bool
     submitted_at: datetime | None

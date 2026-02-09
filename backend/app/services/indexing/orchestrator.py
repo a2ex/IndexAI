@@ -1,6 +1,8 @@
 import asyncio
 import logging
 from typing import Optional
+from urllib.parse import urlparse
+from app.config import settings
 from app.services.indexing.google_indexing_api import submit_url_google_api, submit_batch_google_api
 from app.services.indexing.indexnow import submit_indexnow
 from app.services.indexing.social_signals import ping_web_services
@@ -37,15 +39,24 @@ class IndexingOrchestrator:
                 lambda: submit_url_google_api(url, sa.json_key_path),
             ))
 
-        # Method 2: IndexNow (only if config provided = controlled domain)
-        if indexnow_config:
+        # Method 2: IndexNow (project config or global fallback)
+        inow_config = indexnow_config
+        if not inow_config and settings.INDEXNOW_API_KEY:
+            parsed = urlparse(url)
+            host = parsed.hostname or ""
+            inow_config = {
+                "host": host,
+                "api_key": settings.INDEXNOW_API_KEY,
+                "key_location": f"https://{host}/{settings.INDEXNOW_API_KEY}.txt",
+            }
+        if inow_config:
             tasks.append(self._run_method(
                 "indexnow",
                 lambda: submit_indexnow(
                     [url],
-                    indexnow_config["host"],
-                    indexnow_config["api_key"],
-                    indexnow_config["key_location"],
+                    inow_config["host"],
+                    inow_config["api_key"],
+                    inow_config["key_location"],
                 ),
             ))
 
@@ -105,13 +116,22 @@ class IndexingOrchestrator:
                 results["google_api"].extend(batch_result)
                 await self.sa_manager.increment_usage(sa.id, len(chunk))
 
-        # IndexNow in a single request
-        if indexnow_config:
+        # IndexNow in a single request (project config or global fallback)
+        inow_config = indexnow_config
+        if not inow_config and settings.INDEXNOW_API_KEY and urls:
+            parsed = urlparse(urls[0])
+            host = parsed.hostname or ""
+            inow_config = {
+                "host": host,
+                "api_key": settings.INDEXNOW_API_KEY,
+                "key_location": f"https://{host}/{settings.INDEXNOW_API_KEY}.txt",
+            }
+        if inow_config:
             results["indexnow"] = await submit_indexnow(
                 urls,
-                indexnow_config["host"],
-                indexnow_config["api_key"],
-                indexnow_config["key_location"],
+                inow_config["host"],
+                inow_config["api_key"],
+                inow_config["key_location"],
             )
 
         # Individual pings (limit parallelism)

@@ -1,0 +1,9 @@
+.venv/
+node_modules/
+.env
+credentials/*.json
+__pycache__/
+*.pyc
+.git/
+frontend/dist/
+backend/sitemaps/

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from celery_app import celery
@@ -38,7 +38,7 @@ async def _send_daily_digest():
             logger.info("No users with email digest enabled")
             return
 
-        cutoff = datetime.utcnow() - timedelta(hours=24)
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).replace(tzinfo=None)
 
         for notif in all_settings:
             try:
@@ -96,4 +96,4 @@ async def _send_daily_digest():
 @celery.task(name="app.tasks.notification_tasks.send_daily_digest")
 def send_daily_digest():
     """Send daily email digest of indexed URLs to subscribed users."""
-    asyncio.get_event_loop().run_until_complete(_send_daily_digest())
+    asyncio.run(_send_daily_digest())

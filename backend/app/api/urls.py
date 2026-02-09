@@ -59,3 +59,28 @@ async def resubmit_url(
 
     await db.commit()
     return {"message": "URL resubmitted for indexation", "url_id": str(url_id)}
+
+
+@router.post("/{url_id}/check")
+@limiter.limit("10/minute")
+async def check_url(
+    request: Request,
+    url_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Force an immediate indexation check for a URL."""
+    result = await db.execute(
+        select(URL)
+        .join(Project)
+        .where(URL.id == url_id, Project.user_id == user.id)
+    )
+    url_obj = result.scalars().first()
+    if not url_obj:
+        raise HTTPException(status_code=404, detail="URL not found")
+
+    from app.tasks.verification_tasks import check_single_url
+
+    check_single_url.delay(str(url_id))
+
+    return {"message": "Verification launched", "url_id": str(url_id)}

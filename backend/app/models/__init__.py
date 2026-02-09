@@ -5,6 +5,7 @@ from app.models.credit import CreditTransaction
 from app.models.service_account import ServiceAccount
 from app.models.indexing_log import IndexingLog
 from app.models.notification import NotificationSettings
+from app.models.imported_sitemap import ImportedSitemap
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "ServiceAccount",
     "IndexingLog",
     "NotificationSettings",
+    "ImportedSitemap",
 ]

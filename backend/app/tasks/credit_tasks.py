@@ -26,7 +26,7 @@ def _get_session_factory():
 async def _auto_recredit():
     session_factory = _get_session_factory()
     async with session_factory() as db:
-        cutoff = datetime.utcnow() - timedelta(days=14)
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).replace(tzinfo=None)
 
         result = await db.execute(
             select(URL).where(
@@ -78,4 +78,4 @@ async def _auto_recredit():
 @celery.task(name="app.tasks.credit_tasks.auto_recredit_expired")
 def auto_recredit_expired():
     """Auto-refund credits for URLs not indexed after 14 days."""
-    asyncio.get_event_loop().run_until_complete(_auto_recredit())
+    asyncio.run(_auto_recredit())

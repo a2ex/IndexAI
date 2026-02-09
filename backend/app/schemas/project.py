@@ -87,6 +87,8 @@ class ProjectResponse(BaseModel):
     total_urls: int
     indexed_count: int
     failed_count: int
+    main_domain: str | None
+    gsc_service_account_id: uuid.UUID | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -98,10 +100,11 @@ class ProjectSummary(BaseModel):
     status: str
     total_urls: int
     indexed_count: int
-    failed_count: int
+    not_indexed_count: int
+    recredited_count: int
+    pending_count: int
+    main_domain: str | None
     created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class ProjectStatus(BaseModel):
@@ -112,6 +115,9 @@ class ProjectStatus(BaseModel):
     recredited: int
     success_rate: float
     urls: list[URLResponse]
+    urls_total: int = 0  # total matching filter (for pagination)
+    limit: int = 100
+    offset: int = 0
 
 
 class ProjectDetail(BaseModel):
@@ -122,9 +128,11 @@ class ProjectDetail(BaseModel):
     total_urls: int
     indexed_count: int
     failed_count: int
+    main_domain: str | None
+    gsc_service_account_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
-    urls: list[URLResponse]
+    urls: list[URLResponse] = []
 
     model_config = {"from_attributes": True}
 
@@ -142,3 +150,47 @@ class AddUrlsResponse(BaseModel):
     added: int
     total_urls: int
     credits_debited: int
+
+
+class GscSitemapInfo(BaseModel):
+    path: str
+    lastSubmitted: str
+    urls_count: int
+    isPending: bool
+    imported: bool = False
+    imported_urls: int = 0
+    imported_at: str | None = None
+
+
+class GscImportRequest(BaseModel):
+    sitemap_urls: list[str]
+
+
+class GscImportResponse(BaseModel):
+    added: int
+    duplicates_skipped: int
+    credits_debited: int
+
+
+class IndexingSpeedStats(BaseModel):
+    indexed_24h: int = 0
+    indexed_48h: int = 0
+    indexed_72h: int = 0
+    indexed_7d: int = 0
+    total_submitted: int = 0
+    pct_24h: float = 0.0
+    pct_48h: float = 0.0
+    pct_72h: float = 0.0
+    pct_7d: float = 0.0
+
+
+class MethodStats(BaseModel):
+    total_attempts: int = 0
+    success: int = 0
+    error: int = 0
+    rate: float = 0.0
+
+
+class IndexingStatsResponse(BaseModel):
+    speed: IndexingSpeedStats
+    methods: dict[str, MethodStats]

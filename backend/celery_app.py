@@ -23,7 +23,16 @@ celery.conf.update(
     worker_max_tasks_per_child=100,
 )
 
+celery.conf.task_routes = {
+    "app.tasks.verification_tasks.*": {"queue": "verification"},
+}
+
 celery.conf.beat_schedule = {
+    # Check URLs submitted <6h — every hour (fast detection)
+    "check-fresh-urls": {
+        "task": "app.tasks.verification_tasks.check_fresh_urls",
+        "schedule": crontab(minute=0),
+    },
     # Check URLs submitted <24h — every 6 hours
     "check-recent-urls": {
         "task": "app.tasks.verification_tasks.check_recent_urls",
@@ -57,10 +66,15 @@ celery.conf.beat_schedule = {
         "task": "app.tasks.indexing_tasks.reset_service_account_quotas",
         "schedule": crontab(minute=0, hour=0),
     },
-    # Process pending URLs (wave throttling) — every 4 hours
+    # Process pending URLs — every 10 minutes
     "process-pending-urls": {
         "task": "app.tasks.indexing_tasks.process_pending_urls",
-        "schedule": crontab(minute=0, hour="*/4"),
+        "schedule": 600.0,
+    },
+    # Process method queue (rate-limited, staggered) — every 2 minutes
+    "process-method-queue": {
+        "task": "app.tasks.indexing_tasks.process_method_queue",
+        "schedule": 120.0,
     },
     # Daily email digest of indexed URLs — 9:00 UTC
     "send-daily-digest": {

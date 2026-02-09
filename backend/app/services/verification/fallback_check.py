@@ -1,37 +1,21 @@
 import logging
-import httpx
 
 logger = logging.getLogger(__name__)
 
 
 async def check_indexed_fallback(url: str) -> dict:
     """
-    Fallback: search for the exact URL in Google.
-    Uses the URL in quotes for an exact match search.
-    CAUTION: Least reliable method, can be rate-limited by Google.
+    Fallback method — disabled.
+    Google scraping produces false positives (the searched URL always appears
+    in the HTML even when there are no actual results), so we return
+    is_indexed=None to avoid marking URLs as indexed incorrectly.
     """
-    search_url = f"https://www.google.com/search?q=%22{url}%22&num=1"
-
-    async with httpx.AsyncClient(
-        headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        },
-        follow_redirects=True,
-        timeout=10,
-    ) as client:
-        try:
-            response = await client.get(search_url)
-            is_indexed = url.lower() in response.text.lower()
-
-            return {
-                "is_indexed": is_indexed,
-                "method": "fallback",
-                "note": "Low confidence - use other methods for reliable results",
-            }
-        except Exception as e:
-            logger.error(f"Fallback check failed for {url}: {e}")
-            return {
-                "is_indexed": None,
-                "error": str(e),
-                "method": "fallback",
-            }
+    logger.warning(
+        f"No reliable indexation check method available for {url}. "
+        "Configure GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CSE_ID for accurate results."
+    )
+    return {
+        "is_indexed": None,
+        "method": "fallback",
+        "note": "Fallback disabled — no reliable check method configured",
+    }

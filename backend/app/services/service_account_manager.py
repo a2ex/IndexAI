@@ -58,7 +58,7 @@ class ServiceAccountManager:
         result = await self.db.execute(select(ServiceAccount))
         for sa in result.scalars().all():
             sa.used_today = 0
-            sa.last_reset_at = datetime.utcnow()
+            sa.last_reset_at = datetime.now(timezone.utc).replace(tzinfo=None)
             sa.is_active = True
         await self.db.commit()
         logger.info("All service account quotas reset")

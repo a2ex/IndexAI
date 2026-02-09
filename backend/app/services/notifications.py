@@ -106,7 +106,7 @@ async def notify_url_indexed(db: AsyncSession, url_obj: URL) -> None:
         payload = {
             "event": "url.indexed",
             "url": url_obj.url,
-            "indexed_at": (url_obj.indexed_at or datetime.now(timezone.utc)).isoformat(),
+            "indexed_at": (url_obj.indexed_at or datetime.now(timezone.utc).replace(tzinfo=None)).isoformat(),
             "project_id": str(project.id),
             "project_name": project.name,
             "title": url_obj.indexed_title,

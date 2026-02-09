@@ -13,7 +13,10 @@ frontend:
 	cd frontend && npm run dev
 
 worker:
-	source .venv/bin/activate && cd backend && celery -A celery_app worker --loglevel=info --concurrency=2
+	source .venv/bin/activate && cd backend && celery -A celery_app worker --loglevel=info --concurrency=2 -Q celery -n indexing@%h
+
+worker-verify:
+	source .venv/bin/activate && cd backend && celery -A celery_app worker --loglevel=info --pool=solo -Q verification -n verification@%h
 
 beat:
 	source .venv/bin/activate && cd backend && celery -A celery_app beat --loglevel=info

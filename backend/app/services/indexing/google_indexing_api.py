@@ -12,23 +12,31 @@ ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 
 def submit_url_google_api(url: str, json_key_path: str) -> dict:
     """Submit a single URL via Google Indexing API."""
-    credentials = ServiceAccountCredentials.from_json_keyfile_name(
-        json_key_path, scopes=SCOPES
-    )
-    http = credentials.authorize(httplib2.Http())
+    try:
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            json_key_path, scopes=SCOPES
+        )
+        http = credentials.authorize(httplib2.Http())
 
-    body = json.dumps({"url": url, "type": "URL_UPDATED"})
-    response, content = http.request(ENDPOINT, method="POST", body=body)
-    result = json.loads(content.decode())
+        body = json.dumps({"url": url, "type": "URL_UPDATED"})
+        response, content = http.request(ENDPOINT, method="POST", body=body)
+        result = json.loads(content.decode())
 
-    status_code = int(response["status"])
-    logger.info(f"Google Indexing API response for {url}: {status_code}")
+        status_code = int(response["status"])
+        logger.info(f"Google Indexing API response for {url}: {status_code}")
 
-    return {
-        "status_code": status_code,
-        "response": result,
-        "success": status_code == 200,
-    }
+        return {
+            "status_code": status_code,
+            "response": result,
+            "success": status_code == 200,
+        }
+    except Exception as e:
+        logger.error(f"Google Indexing API error for {url}: {e}")
+        return {
+            "status_code": 0,
+            "response": {"error": str(e)},
+            "success": False,
+        }
 
 
 def submit_batch_google_api(urls: list[str], json_key_path: str) -> list[dict]:

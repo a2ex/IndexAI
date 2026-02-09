@@ -45,6 +45,10 @@ class CreditService:
 
         user.credit_balance -= count
 
+        # Batch fetch all URLs
+        url_result = await self.db.execute(select(URL).where(URL.id.in_(url_ids)))
+        url_map = {u.id: u for u in url_result.scalars().all()}
+
         for url_id in url_ids:
             tx = CreditTransaction(
                 user_id=user_id,
@@ -55,8 +59,7 @@ class CreditService:
             )
             self.db.add(tx)
 
-            url_result = await self.db.execute(select(URL).where(URL.id == url_id))
-            url_obj = url_result.scalars().first()
+            url_obj = url_map.get(url_id)
             if url_obj:
                 url_obj.credit_debited = True
 
@@ -65,22 +68,18 @@ class CreditService:
 
     async def refund_credits(self, user_id: uuid.UUID, url_ids: list[uuid.UUID]) -> int:
         """Refund credits for non-indexed URLs after the delay."""
+        # Batch fetch user and URLs
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalars().first()
+        if not user:
+            return 0
+
+        url_result = await self.db.execute(select(URL).where(URL.id.in_(url_ids)))
+        url_objects = url_result.scalars().all()
+
         refunded = 0
-
-        for url_id in url_ids:
-            url_result = await self.db.execute(select(URL).where(URL.id == url_id))
-            url_obj = url_result.scalars().first()
-
-            if (
-                url_obj
-                and url_obj.credit_debited
-                and not url_obj.credit_refunded
-                and not url_obj.is_indexed
-            ):
-                user_result = await self.db.execute(
-                    select(User).where(User.id == user_id)
-                )
-                user = user_result.scalars().first()
+        for url_obj in url_objects:
+            if url_obj.credit_debited and not url_obj.credit_refunded and not url_obj.is_indexed:
                 user.credit_balance += 1
                 url_obj.credit_refunded = True
                 url_obj.status = "recredited"
@@ -90,7 +89,7 @@ class CreditService:
                     amount=1,
                     type=TransactionType.refund,
                     description="Auto-refund: URL not indexed after 14 days",
-                    url_id=url_id,
+                    url_id=url_obj.id,
                 )
                 self.db.add(tx)
                 refunded += 1

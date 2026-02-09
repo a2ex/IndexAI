@@ -1,12 +1,13 @@
 import asyncio
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from celery_app import celery
 from app.config import settings
 from app.models.url import URL, URLStatus
-from app.services.verification.checker import IndexationChecker
+from app.services.verification.checker import IndexationChecker, build_checker_for_project
 from app.services.notifications import notify_url_indexed
 
 logger = logging.getLogger(__name__)
@@ -23,17 +24,54 @@ def _get_session_factory():
     return _session_factory
 
 
+async def _process_url(db: AsyncSession, url_obj: URL, checker: IndexationChecker, label: str = ""):
+    """Check a single URL's indexation with the given checker. Commits on success, rolls back on error."""
+    try:
+        if url_obj.status == URLStatus.submitted:
+            url_obj.status = URLStatus.indexing
+
+        check_result = await checker.check_url(url_obj.url)
+
+        checked_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        url_obj.last_checked_at = checked_at
+        url_obj.check_count += 1
+        url_obj.check_method = check_result.get("method")
+
+        if check_result.get("is_indexed"):
+            url_obj.is_indexed = True
+            url_obj.indexed_at = checked_at
+            url_obj.status = URLStatus.indexed
+            url_obj.indexed_title = check_result.get("title")
+            url_obj.indexed_snippet = check_result.get("snippet")
+            logger.info(f"URL indexed{label}: {url_obj.url}")
+            await notify_url_indexed(db, url_obj)
+        elif check_result.get("is_indexed") is None:
+            logger.warning(
+                f"No reliable check method for {url_obj.url} "
+                f"(method={check_result.get('method')})"
+            )
+        else:
+            url_obj.status = URLStatus.not_indexed
+            logger.info(f"URL not indexed yet{label}: {url_obj.url}")
+
+        await db.commit()
+
+    except Exception as e:
+        logger.error(f"Verification failed for {url_obj.url}: {e}")
+        await db.rollback()
+
+
 async def _check_urls(min_age_days: int = 0, max_age_days: int = 1):
     session_factory = _get_session_factory()
     async with session_factory() as db:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         min_date = now - timedelta(days=max_age_days)
         max_date = now - timedelta(days=min_age_days)
 
         result = await db.execute(
             select(URL).where(
                 and_(
-                    URL.status.in_([URLStatus.submitted, URLStatus.indexing]),
+                    URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.not_indexed]),
                     URL.submitted_at >= min_date,
                     URL.submitted_at <= max_date,
                 )
@@ -45,42 +83,89 @@ async def _check_urls(min_age_days: int = 0, max_age_days: int = 1):
             logger.info(f"No URLs to check for age {min_age_days}-{max_age_days} days")
             return
 
-        checker = IndexationChecker({
-            "custom_search_api_key": settings.GOOGLE_CUSTOM_SEARCH_API_KEY,
-            "cse_id": settings.GOOGLE_CSE_ID,
-        })
-
+        # Group URLs by project_id
+        by_project: dict[str, list[URL]] = defaultdict(list)
         for url_obj in urls:
-            try:
-                check_result = await checker.check_url(url_obj.url)
+            by_project[str(url_obj.project_id)].append(url_obj)
 
-                url_obj.last_checked_at = now
-                url_obj.check_count += 1
-                url_obj.check_method = check_result.get("method")
+        # Build a checker per project and process
+        for project_id, project_urls in by_project.items():
+            checker = await build_checker_for_project(db, project_id)
+            for url_obj in project_urls:
+                await _process_url(db, url_obj, checker)
 
-                if check_result.get("is_indexed"):
-                    url_obj.is_indexed = True
-                    url_obj.indexed_at = now
-                    url_obj.status = URLStatus.indexed
-                    url_obj.indexed_title = check_result.get("title")
-                    url_obj.indexed_snippet = check_result.get("snippet")
-                    logger.info(f"URL indexed: {url_obj.url}")
-                    await notify_url_indexed(db, url_obj)
-
-            except Exception as e:
-                logger.error(f"Verification failed for {url_obj.url}: {e}")
-
-        await db.commit()
         logger.info(f"Checked {len(urls)} URLs ({min_age_days}-{max_age_days} days old)")
+
+
+async def _check_single_url(url_id: str):
+    """Check a single URL's indexation status."""
+    session_factory = _get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(select(URL).where(URL.id == url_id))
+        url_obj = result.scalars().first()
+        if not url_obj:
+            logger.error(f"URL not found: {url_id}")
+            return
+
+        checker = await build_checker_for_project(db, str(url_obj.project_id))
+        await _process_url(db, url_obj, checker)
+
+
+@celery.task(name="app.tasks.verification_tasks.check_single_url")
+def check_single_url(url_id: str):
+    """Force check indexation status for a single URL."""
+    asyncio.run(_check_single_url(url_id))
+
+
+async def _check_fresh_urls():
+    """Check URLs submitted in the last 6 hours, skip recently checked."""
+    session_factory = _get_session_factory()
+    async with session_factory() as db:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        min_date = now - timedelta(hours=6)
+        recently_checked = now - timedelta(minutes=50)
+
+        result = await db.execute(
+            select(URL).where(
+                and_(
+                    URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.not_indexed]),
+                    URL.submitted_at >= min_date,
+                    (URL.last_checked_at == None) | (URL.last_checked_at < recently_checked),
+                )
+            ).limit(100)
+        )
+        urls = result.scalars().all()
+
+        if not urls:
+            logger.info("No fresh URLs to check (<6h)")
+            return
+
+        # Group URLs by project_id
+        by_project: dict[str, list[URL]] = defaultdict(list)
+        for url_obj in urls:
+            by_project[str(url_obj.project_id)].append(url_obj)
+
+        for project_id, project_urls in by_project.items():
+            checker = await build_checker_for_project(db, project_id)
+            for url_obj in project_urls:
+                await _process_url(db, url_obj, checker, label=" (fresh check)")
+
+        logger.info(f"Fresh check: verified {len(urls)} URLs (<6h old)")
+
+
+@celery.task(name="app.tasks.verification_tasks.check_fresh_urls")
+def check_fresh_urls():
+    """Hourly check for URLs submitted in the last 6 hours."""
+    asyncio.run(_check_fresh_urls())
 
 
 @celery.task(name="app.tasks.verification_tasks.check_recent_urls")
 def check_recent_urls():
     """Check URLs submitted less than 24h ago."""
-    asyncio.get_event_loop().run_until_complete(_check_urls(0, 1))
+    asyncio.run(_check_urls(0, 1))
 
 
 @celery.task(name="app.tasks.verification_tasks.check_pending_urls")
 def check_pending_urls(min_age_days: int = 1, max_age_days: int = 3):
     """Check pending URLs within a given age range."""
-    asyncio.get_event_loop().run_until_complete(_check_urls(min_age_days, max_age_days))
+    asyncio.run(_check_urls(min_age_days, max_age_days))

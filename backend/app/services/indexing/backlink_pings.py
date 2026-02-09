@@ -1,5 +1,7 @@
 import logging
+from urllib.parse import urlparse
 import httpx
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,35 +29,28 @@ async def ping_backlink_trackers(url: str) -> list[dict]:
         except Exception as e:
             results.append({"service": "pubsubhubbub", "error": str(e), "success": False})
 
-    # 2. IndexNow direct ping to Bing (as a backlink signal)
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            resp = await client.get(
-                f"https://www.bing.com/indexnow?url={url}",
-                follow_redirects=True,
-            )
-            results.append({
-                "service": "bing_indexnow_direct",
-                "status": resp.status_code,
-                "success": resp.status_code < 400,
-            })
-        except Exception as e:
-            results.append({"service": "bing_indexnow_direct", "error": str(e), "success": False})
-
-    # 3. Yandex direct ping
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            resp = await client.get(
-                f"https://yandex.com/indexnow?url={url}",
-                follow_redirects=True,
-            )
-            results.append({
-                "service": "yandex_indexnow_direct",
-                "status": resp.status_code,
-                "success": resp.status_code < 400,
-            })
-        except Exception as e:
-            results.append({"service": "yandex_indexnow_direct", "error": str(e), "success": False})
+    # 2 & 3. IndexNow pings to Bing & Yandex (with API key)
+    api_key = settings.INDEXNOW_API_KEY
+    if api_key:
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+        for engine, endpoint in [("bing", "https://www.bing.com/indexnow"), ("yandex", "https://yandex.com/indexnow")]:
+            async with httpx.AsyncClient(timeout=15) as client:
+                try:
+                    resp = await client.get(
+                        endpoint,
+                        params={"url": url, "key": api_key},
+                        follow_redirects=True,
+                    )
+                    results.append({
+                        "service": f"{engine}_indexnow_direct",
+                        "status": resp.status_code,
+                        "success": resp.status_code < 400,
+                    })
+                except Exception as e:
+                    results.append({"service": f"{engine}_indexnow_direct", "error": str(e), "success": False})
+    else:
+        logger.warning("INDEXNOW_API_KEY not configured, skipping IndexNow pings")
 
     logger.info(f"Backlink pings for {url}: {len(results)} services pinged")
     return results

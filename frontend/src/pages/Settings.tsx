@@ -153,22 +153,22 @@ export default function Settings() {
     setWebNotificationsEnabled(enabled);
   };
 
-  if (loading) return <div className="text-gray-400">Loading...</div>;
+  if (loading) return <div className="text-slate-500">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-        <p className="text-sm text-gray-500 mt-1">Google API configuration</p>
+        <h2 className="text-2xl font-bold text-white">Settings</h2>
+        <p className="text-sm text-slate-500 mt-1">Google API configuration</p>
       </div>
 
       {/* Google Custom Search Settings */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-sm font-medium text-gray-900 mb-4">Google Custom Search API</h3>
-        <p className="text-xs text-gray-500 mb-4">Used to verify if URLs are indexed in Google.</p>
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+        <h3 className="text-sm font-medium text-white mb-4">Google Custom Search API</h3>
+        <p className="text-xs text-slate-500 mb-4">Used to verify if URLs are indexed in Google.</p>
 
         {googleSettings && (
-          <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600 space-y-1">
+          <div className="bg-slate-800 rounded-lg p-3 mb-4 text-xs text-slate-400 space-y-1">
             <p>API Key: <span className="font-mono">{googleSettings.google_custom_search_api_key}</span></p>
             <p>CSE ID: <span className="font-mono">{googleSettings.google_cse_id}</span></p>
           </div>
@@ -176,40 +176,40 @@ export default function Settings() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Custom Search API Key</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Custom Search API Key</label>
             <input
               type="text"
               value={cseApiKey}
               onChange={(e) => setCseApiKey(e.target.value)}
               placeholder="AIza..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Search Engine ID (cx)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Search Engine ID (cx)</label>
             <input
               type="text"
               value={cseId}
               onChange={(e) => setCseId(e.target.value)}
               placeholder="a1b2c3d4e5f..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
             />
           </div>
         </div>
         <button
           onClick={handleSaveSettings}
           disabled={savingSettings || (!cseApiKey && !cseId)}
-          className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="mt-3 bg-cyan-500 text-slate-950 px-4 py-2 rounded-lg text-sm font-medium hover:bg-cyan-400 transition-colors disabled:opacity-50"
         >
           {savingSettings ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
 
       {/* Notifications */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Bell size={18} className="text-gray-700" />
-          <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
+          <Bell size={18} className="text-slate-300" />
+          <h3 className="text-sm font-medium text-white">Notifications</h3>
         </div>
 
         <label className="flex items-center gap-3 cursor-pointer">
@@ -217,49 +217,49 @@ export default function Settings() {
             type="checkbox"
             checked={webNotifsEnabled}
             onChange={(e) => handleToggleWebNotifs(e.target.checked)}
-            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            className="w-4 h-4 text-cyan-500 rounded border-slate-600 bg-slate-800 focus:ring-cyan-500/50"
           />
           <div>
-            <span className="text-sm font-medium text-gray-900">Notifications web</span>
-            <p className="text-xs text-gray-500">Receive a browser notification when a URL is indexed</p>
+            <span className="text-sm font-medium text-white">Notifications web</span>
+            <p className="text-xs text-slate-500">Receive a browser notification when a URL is indexed</p>
           </div>
         </label>
 
         {webNotifsEnabled && notifPermission === 'denied' && (
-          <p className="mt-3 text-xs text-red-500">
+          <p className="mt-3 text-xs text-rose-400">
             Notifications are blocked by your browser. Allow them in your browser settings for this site.
           </p>
         )}
         {webNotifsEnabled && notifPermission === 'granted' && (
-          <p className="mt-3 text-xs text-green-600">
+          <p className="mt-3 text-xs text-emerald-400">
             Notifications are active. You will be notified when a URL is indexed.
           </p>
         )}
       </div>
 
       {/* Service Accounts */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-sm font-medium text-gray-900 mb-4">Google Service Accounts</h3>
-        <p className="text-xs text-gray-500 mb-4">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+        <h3 className="text-sm font-medium text-white mb-4">Google Service Accounts</h3>
+        <p className="text-xs text-slate-500 mb-4">
           Service accounts for Google Indexing API. Each account has a 200 URLs/day quota.
         </p>
 
         {/* Upload form */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+        <div className="bg-slate-800 rounded-lg p-4 mb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Account Name</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Account Name</label>
               <input
                 type="text"
                 value={saName}
                 onChange={(e) => setSaName(e.target.value)}
                 placeholder="indexai-sa-1"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-700 bg-slate-900 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">JSON Key File</label>
-              <label className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-white transition-colors">
+              <label className="block text-xs font-medium text-slate-300 mb-1">JSON Key File</label>
+              <label className="flex items-center gap-2 border border-slate-700 bg-slate-900 rounded-lg px-3 py-2 text-sm text-slate-300 cursor-pointer hover:bg-slate-800 transition-colors">
                 <Upload size={14} />
                 <span className="truncate">{saFile ? saFile.name : 'Choose file...'}</span>
                 <input
@@ -273,13 +273,13 @@ export default function Settings() {
             <button
               onClick={handleUpload}
               disabled={uploading || !saName || !saFile}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="bg-cyan-500 text-slate-950 px-4 py-2 rounded-lg text-sm font-medium hover:bg-cyan-400 transition-colors disabled:opacity-50"
             >
               {uploading ? 'Uploading...' : 'Add Account'}
             </button>
           </div>
           {uploadMsg && (
-            <p className={`text-xs mt-2 ${uploadMsg.startsWith('Error') ? 'text-red-500' : 'text-green-600'}`}>
+            <p className={`text-xs mt-2 ${uploadMsg.startsWith('Error') ? 'text-rose-400' : 'text-emerald-400'}`}>
               {uploadMsg}
             </p>
           )}
@@ -287,38 +287,38 @@ export default function Settings() {
 
         {/* Accounts list */}
         {accounts.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm">
+          <div className="text-center py-6 text-slate-500 text-sm">
             No service accounts registered yet
           </div>
         ) : (
           <div className="space-y-3">
             {accounts.map((sa) => (
-              <div key={sa.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={sa.id} className="border border-slate-800 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Shield size={18} className={sa.is_active ? 'text-green-500' : 'text-gray-400'} />
+                    <Shield size={18} className={sa.is_active ? 'text-emerald-400' : 'text-slate-500'} />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{sa.name}</p>
-                      <p className="text-xs text-gray-500 font-mono">{sa.email}</p>
+                      <p className="text-sm font-medium text-white">{sa.name}</p>
+                      <p className="text-xs text-slate-500 font-mono">{sa.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-medium text-slate-300">
                         {sa.used_today}/{sa.daily_quota}
                       </p>
-                      <p className="text-xs text-gray-400">used today</p>
+                      <p className="text-xs text-slate-500">used today</p>
                     </div>
                     <button
                       onClick={() => handleTest(sa.id)}
-                      className="text-blue-600 hover:text-blue-800 p-1"
+                      className="text-cyan-400 hover:text-cyan-300 p-1"
                       title="Test connection"
                     >
                       <PlayCircle size={18} />
                     </button>
                     <button
                       onClick={() => handleDelete(sa.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-rose-400 hover:text-rose-300 p-1"
                       title="Delete"
                     >
                       <Trash2 size={18} />
@@ -327,7 +327,7 @@ export default function Settings() {
                 </div>
 
                 {testResults[sa.id] && (
-                  <div className={`mt-2 flex items-center gap-2 text-xs ${testResults[sa.id].success ? 'text-green-600' : 'text-red-500'}`}>
+                  <div className={`mt-2 flex items-center gap-2 text-xs ${testResults[sa.id].success ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {testResults[sa.id].success ? <CheckCircle size={14} /> : testResults[sa.id].error ? <XCircle size={14} /> : <AlertCircle size={14} />}
                     {testResults[sa.id].message || testResults[sa.id].error || 'Unknown'}
                   </div>

@@ -48,9 +48,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 echo -e "  ${GREEN}Backend API started (PID: $BACKEND_PID) → http://localhost:8000${NC}"
 
-celery -A celery_app worker --loglevel=info --concurrency=2 &
+celery -A celery_app worker --loglevel=info --concurrency=2 -Q celery -n indexing@%h &
 WORKER_PID=$!
-echo -e "  ${GREEN}Celery worker started (PID: $WORKER_PID)${NC}"
+echo -e "  ${GREEN}Celery indexing worker started (PID: $WORKER_PID)${NC}"
+
+celery -A celery_app worker --loglevel=info --pool=solo -Q verification -n verification@%h &
+VERIFY_PID=$!
+echo -e "  ${GREEN}Celery verification worker started (PID: $VERIFY_PID)${NC}"
 
 celery -A celery_app beat --loglevel=info &
 BEAT_PID=$!
@@ -78,7 +82,7 @@ echo -e "\n${YELLOW}Press Ctrl+C to stop all services${NC}\n"
 # Trap Ctrl+C to kill all background processes
 cleanup() {
     echo -e "\n${YELLOW}Stopping all services...${NC}"
-    kill $BACKEND_PID $WORKER_PID $BEAT_PID $FRONTEND_PID 2>/dev/null
+    kill $BACKEND_PID $WORKER_PID $VERIFY_PID $BEAT_PID $FRONTEND_PID 2>/dev/null
     wait 2>/dev/null
     echo -e "${GREEN}All services stopped.${NC}"
     exit 0

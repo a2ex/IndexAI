@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, get_admin_user
 from app.rate_limit import limiter
 from app.models.user import User
 from app.models.credit import CreditTransaction
@@ -49,11 +49,13 @@ async def get_credit_history(
 async def add_credits(
     request: Request,
     amount: int = Query(gt=0),
-    user: User = Depends(get_current_user),
+    user_id: uuid.UUID | None = Query(default=None),
+    admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add credits to the user's balance (admin/testing endpoint)."""
+    """Add credits to a user's balance (admin only)."""
+    target_user_id = user_id or admin.id
     credit_service = CreditService(db)
-    new_balance = await credit_service.add_credits(user.id, amount)
+    new_balance = await credit_service.add_credits(target_user_id, amount)
     await db.commit()
-    return {"balance": new_balance, "added": amount}
+    return {"balance": new_balance, "added": amount, "user_id": str(target_user_id)}

@@ -1,4 +1,10 @@
 import logging
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
 from app.services.verification.custom_search import check_indexed_custom_search
 from app.services.verification.gsc_inspection import check_indexed_gsc_inspection
 from app.services.verification.fallback_check import check_indexed_fallback
@@ -46,3 +52,34 @@ class IndexationChecker:
 
         # Last resort: direct verification
         return await check_indexed_fallback(url)
+
+
+async def build_checker_for_project(db: AsyncSession, project_id: str | UUID) -> IndexationChecker:
+    """Build an IndexationChecker using the project's GSC service account if configured,
+    otherwise fall back to global settings."""
+    from app.config import settings
+    from app.models.project import Project
+
+    result = await db.execute(
+        select(Project)
+        .options(joinedload(Project.gsc_service_account))
+        .where(Project.id == project_id)
+    )
+    project = result.scalars().first()
+
+    if project and project.gsc_service_account:
+        sa = project.gsc_service_account
+        return IndexationChecker({
+            "gsc_property": "auto",  # _match_gsc_property will auto-detect
+            "service_account_json": sa.json_key_path,
+            "custom_search_api_key": settings.GOOGLE_CUSTOM_SEARCH_API_KEY,
+            "cse_id": settings.GOOGLE_CSE_ID,
+        })
+
+    # Fallback to global settings
+    return IndexationChecker({
+        "gsc_property": settings.GSC_PROPERTY,
+        "service_account_json": settings.GSC_SERVICE_ACCOUNT_JSON,
+        "custom_search_api_key": settings.GOOGLE_CUSTOM_SEARCH_API_KEY,
+        "cse_id": settings.GOOGLE_CSE_ID,
+    })

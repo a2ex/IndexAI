@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +30,7 @@ async def get_recent_indexed(
         return []
 
     # Parse since timestamp, default to last 2 hours
-    cutoff = datetime.utcnow() - timedelta(hours=2)
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).replace(tzinfo=None)
     if since:
         try:
             cutoff = datetime.fromisoformat(since)

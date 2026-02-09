@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -24,7 +24,7 @@ class CreditTransaction(Base):
     )
     description: Mapped[str | None] = mapped_column(Text)
     url_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("urls.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     user: Mapped["User"] = relationship(back_populates="credit_transactions")
     url: Mapped["URL | None"] = relationship(back_populates="credit_transactions")
