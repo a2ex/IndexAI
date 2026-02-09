@@ -10,6 +10,7 @@ class URLStatus(str, enum.Enum):
     pending = "pending"
     submitted = "submitted"
     indexing = "indexing"
+    verifying = "verifying"
     indexed = "indexed"
     not_indexed = "not_indexed"
     recredited = "recredited"

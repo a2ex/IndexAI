@@ -416,6 +416,10 @@ async def _process_method_queue():
                     if url_obj.status == URLStatus.submitted:
                         url_obj.status = "indexing"
 
+                    # Transition to verifying after the last method (google_api)
+                    if method == "google_api" and success and url_obj.status == URLStatus.indexing:
+                        url_obj.status = URLStatus.verifying
+
                     await db.commit()
                     processed += 1
 

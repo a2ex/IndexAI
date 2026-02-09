@@ -38,6 +38,7 @@ async def _auto_recredit():
                     URL.status.in_([
                         URLStatus.submitted,
                         URLStatus.indexing,
+                        URLStatus.verifying,
                         URLStatus.not_indexed,
                     ]),
                 )

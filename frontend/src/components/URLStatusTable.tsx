@@ -32,7 +32,14 @@ const statusConfig: Record<string, {
     text: 'text-amber-400',
     icon: <Loader2 size={12} className="animate-spin" />,
     label: 'Indexing',
-    tooltip: 'En cours de vérification par Google',
+    tooltip: 'Soumission aux moteurs de recherche en cours',
+  },
+  verifying: {
+    bg: 'bg-blue-500/15',
+    text: 'text-blue-400',
+    icon: <SearchCheck size={12} />,
+    label: 'Verifying',
+    tooltip: 'Vérification de l\'indexation en cours',
   },
   indexed: {
     bg: 'bg-emerald-500/15',
@@ -218,7 +225,7 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
     }
   }, [onRefresh]);
 
-  const isRowActive = (status: string) => status === 'submitted' || status === 'indexing';
+  const isRowActive = (status: string) => status === 'submitted' || status === 'indexing' || status === 'verifying';
 
   return (
     <div>
@@ -243,6 +250,7 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
             <option value="pending">Pending</option>
             <option value="submitted">Submitted</option>
             <option value="indexing">Indexing</option>
+            <option value="verifying">Verifying</option>
             <option value="indexed">Indexed</option>
             <option value="not_indexed">Not Indexed</option>
             <option value="recredited">Recredited</option>

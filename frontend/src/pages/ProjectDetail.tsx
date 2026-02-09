@@ -231,9 +231,10 @@ export default function ProjectDetail() {
         const pendingCount = status!.urls.filter((u) => u.status === 'pending').length;
         const submittedCount = status!.urls.filter((u) => u.status === 'submitted').length;
         const indexingCount = status!.urls.filter((u) => u.status === 'indexing').length;
-        const totalProcessing = pendingCount + submittedCount + indexingCount;
+        const verifyingCount = status!.urls.filter((u) => u.status === 'verifying').length;
+        const totalProcessing = pendingCount + submittedCount + indexingCount + verifyingCount;
         const totalUrls = status!.urls.length;
-        const sentCount = submittedCount + indexingCount;
+        const sentCount = submittedCount + indexingCount + verifyingCount;
         const details: string[] = [];
         if (pendingCount > 0) details.push(`${pendingCount} en attente`);
         if (submittedCount > 0) {
@@ -242,7 +243,11 @@ export default function ProjectDetail() {
         }
         if (indexingCount > 0) {
           const pct = sentCount > 0 ? (indexingCount / sentCount * 100).toFixed(1) : '0';
-          details.push(`${indexingCount} en vérification (${pct}%)`);
+          details.push(`${indexingCount} en soumission (${pct}%)`);
+        }
+        if (verifyingCount > 0) {
+          const pct = sentCount > 0 ? (verifyingCount / sentCount * 100).toFixed(1) : '0';
+          details.push(`${verifyingCount} en vérification (${pct}%)`);
         }
         return (
           <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl overflow-hidden">
@@ -602,6 +607,7 @@ export default function ProjectDetail() {
             <option value="pending">Pending</option>
             <option value="submitted">Submitted</option>
             <option value="indexing">Indexing</option>
+            <option value="verifying">Verifying</option>
             <option value="indexed">Indexed</option>
             <option value="not_indexed">Not Indexed</option>
             <option value="recredited">Recredited</option>

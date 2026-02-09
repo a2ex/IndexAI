@@ -158,7 +158,7 @@ async def list_projects(
         indexed = sc.get("indexed", 0)
         not_indexed = sc.get("not_indexed", 0)
         recredited = sc.get("recredited", 0)
-        pending = sc.get("pending", 0) + sc.get("submitted", 0) + sc.get("indexing", 0)
+        pending = sc.get("pending", 0) + sc.get("submitted", 0) + sc.get("indexing", 0) + sc.get("verifying", 0)
         summaries.append(ProjectSummary(
             id=p.id,
             name=p.name,
@@ -644,7 +644,7 @@ async def get_project_status(
 
     total = sum(counts.values())
     indexed = counts.get("indexed", 0)
-    pending = sum(counts.get(s, 0) for s in ("pending", "submitted", "indexing"))
+    pending = sum(counts.get(s, 0) for s in ("pending", "submitted", "indexing", "verifying"))
     not_indexed = counts.get("not_indexed", 0)
     recredited = counts.get("recredited", 0)
     success_rate = (indexed / total * 100) if total > 0 else 0.0

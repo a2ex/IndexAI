@@ -29,6 +29,8 @@ async def _process_url(db: AsyncSession, url_obj: URL, checker: IndexationChecke
     try:
         if url_obj.status == URLStatus.submitted:
             url_obj.status = URLStatus.indexing
+        elif url_obj.status == URLStatus.indexing:
+            url_obj.status = URLStatus.verifying
 
         check_result = await checker.check_url(url_obj.url)
 
@@ -71,7 +73,7 @@ async def _check_urls(min_age_days: int = 0, max_age_days: int = 1):
         result = await db.execute(
             select(URL).where(
                 and_(
-                    URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.not_indexed]),
+                    URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.verifying, URLStatus.not_indexed]),
                     URL.submitted_at >= min_date,
                     URL.submitted_at <= max_date,
                 )
@@ -128,7 +130,7 @@ async def _check_fresh_urls():
         result = await db.execute(
             select(URL).where(
                 and_(
-                    URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.not_indexed]),
+                    URL.status.in_([URLStatus.submitted, URLStatus.indexing, URLStatus.verifying, URLStatus.not_indexed]),
                     URL.submitted_at >= min_date,
                     (URL.last_checked_at == None) | (URL.last_checked_at < recently_checked),
                 )
