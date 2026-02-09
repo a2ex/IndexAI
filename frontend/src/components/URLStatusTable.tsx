@@ -42,11 +42,11 @@ const statusConfig: Record<string, {
     tooltip: 'Vérification de l\'indexation en cours',
   },
   indexed: {
-    bg: 'bg-emerald-500/15',
-    text: 'text-emerald-400',
+    bg: 'bg-slate-700/60',
+    text: 'text-slate-300',
     icon: <CheckCircle size={12} />,
     label: 'Indexed',
-    tooltip: 'Indexée avec succès',
+    tooltip: 'Déjà indexée',
   },
   not_indexed: {
     bg: 'bg-rose-500/15',
@@ -64,10 +64,26 @@ const statusConfig: Record<string, {
   },
 };
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, indexedByService }: { status: string; indexedByService?: boolean }) {
   const config = statusConfig[status] || {
     bg: 'bg-slate-700', text: 'text-slate-300', icon: null, label: status, tooltip: status,
   };
+
+  const isServiceIndexed = status === 'indexed' && indexedByService;
+
+  if (isServiceIndexed) {
+    return (
+      <span className="relative group cursor-help">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/40 shadow-[0_0_6px_rgba(16,185,129,0.15)]">
+          <CheckCircle size={12} />
+          Indexed
+        </span>
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+          Indexée grâce à IndexAI
+        </span>
+      </span>
+    );
+  }
 
   return (
     <span className="relative group cursor-help">
@@ -243,6 +259,7 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
   }, [onRefresh]);
 
   const isRowActive = (status: string) => status === 'submitted' || status === 'indexing' || status === 'verifying';
+  const isIndexedByService = (u: URLEntry) => u.status === 'indexed' && u.verified_not_indexed;
 
   return (
     <div>
@@ -308,7 +325,7 @@ export default function URLStatusTable({ urls, onRefresh, serverFiltered }: Prop
                   </a>
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={u.status} />
+                  <StatusBadge status={u.status} indexedByService={isIndexedByService(u)} />
                 </td>
                 <td className="px-4 py-3 text-center">
                   <div className="flex justify-center gap-1">

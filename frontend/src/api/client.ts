@@ -172,6 +172,8 @@ export interface URLEntry {
   indexed_snippet: string | null;
   credit_debited: boolean;
   credit_refunded: boolean;
+  pre_indexed: boolean;
+  verified_not_indexed: boolean;
   submitted_at: string | null;
   created_at: string;
 }

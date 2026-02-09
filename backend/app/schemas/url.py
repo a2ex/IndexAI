@@ -33,6 +33,8 @@ class URLResponse(BaseModel):
     indexnow_last_status: str | None
     credit_debited: bool
     credit_refunded: bool
+    pre_indexed: bool = False
+    verified_not_indexed: bool = False
     submitted_at: datetime | None
     created_at: datetime
 
