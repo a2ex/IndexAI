@@ -10,11 +10,11 @@ SCOPES = ["https://www.googleapis.com/auth/indexing"]
 ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 
 
-def submit_url_google_api(url: str, json_key_path: str) -> dict:
+def submit_url_google_api(url: str, json_key_dict: dict) -> dict:
     """Submit a single URL via Google Indexing API."""
     try:
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            json_key_path, scopes=SCOPES
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+            json_key_dict, scopes=SCOPES
         )
         http = credentials.authorize(httplib2.Http())
 
@@ -39,10 +39,10 @@ def submit_url_google_api(url: str, json_key_path: str) -> dict:
         }
 
 
-def submit_batch_google_api(urls: list[str], json_key_path: str) -> list[dict]:
+def submit_batch_google_api(urls: list[str], json_key_dict: dict) -> list[dict]:
     """Submit a batch of URLs (max 100) via Google Indexing API."""
-    credentials = ServiceAccountCredentials.from_json_keyfile_name(
-        json_key_path, scopes=SCOPES
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+        json_key_dict, scopes=SCOPES
     )
     service = build("indexing", "v3", credentials=credentials)
 

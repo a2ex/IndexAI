@@ -467,15 +467,16 @@ async def get_gsc_sitemaps(
     # Determine GSC credentials: per-project SA or global
     if project.gsc_service_account:
         gsc_property = f"sc-domain:{project.main_domain}" if project.main_domain else ""
-        sa_json = project.gsc_service_account.json_key_path
-    elif settings.GSC_PROPERTY and settings.GSC_SERVICE_ACCOUNT_JSON:
-        gsc_property = settings.GSC_PROPERTY
-        sa_json = settings.GSC_SERVICE_ACCOUNT_JSON
+        sa_info = project.gsc_service_account.json_key_dict
     else:
-        raise HTTPException(status_code=501, detail="GSC not configured")
+        from app.config import get_global_gsc_credentials
+        sa_info = get_global_gsc_credentials()
+        gsc_property = settings.GSC_PROPERTY
+        if not gsc_property or not sa_info:
+            raise HTTPException(status_code=501, detail="GSC not configured")
 
     try:
-        sitemaps = list_sitemaps(gsc_property, sa_json)
+        sitemaps = list_sitemaps(gsc_property, sa_info)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"GSC API error: {e}")
 

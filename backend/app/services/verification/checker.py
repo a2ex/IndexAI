@@ -25,12 +25,12 @@ class IndexationChecker:
         """Check indexation of a URL with the best available method."""
 
         # Priority method: GSC Inspection (if site owner)
-        if self.config.get("gsc_property") and self.config.get("service_account_json"):
+        if self.config.get("gsc_property") and self.config.get("service_account_info"):
             try:
                 result = check_indexed_gsc_inspection(
                     url,
                     self.config["gsc_property"],
-                    self.config["service_account_json"],
+                    self.config["service_account_info"],
                 )
                 if result["is_indexed"] is not None:
                     return result
@@ -71,15 +71,17 @@ async def build_checker_for_project(db: AsyncSession, project_id: str | UUID) ->
         sa = project.gsc_service_account
         return IndexationChecker({
             "gsc_property": "auto",  # _match_gsc_property will auto-detect
-            "service_account_json": sa.json_key_path,
+            "service_account_info": sa.json_key_dict,
             "custom_search_api_key": settings.GOOGLE_CUSTOM_SEARCH_API_KEY,
             "cse_id": settings.GOOGLE_CSE_ID,
         })
 
     # Fallback to global settings
+    from app.config import get_global_gsc_credentials
+    global_creds = get_global_gsc_credentials()
     return IndexationChecker({
         "gsc_property": settings.GSC_PROPERTY,
-        "service_account_json": settings.GSC_SERVICE_ACCOUNT_JSON,
+        "service_account_info": global_creds,
         "custom_search_api_key": settings.GOOGLE_CUSTOM_SEARCH_API_KEY,
         "cse_id": settings.GOOGLE_CSE_ID,
     })

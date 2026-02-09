@@ -1,6 +1,8 @@
+import json
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 from pydantic import model_validator
-from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -10,7 +12,8 @@ class Settings(BaseSettings):
     GOOGLE_CUSTOM_SEARCH_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""
     GSC_PROPERTY: str = ""
-    GSC_SERVICE_ACCOUNT_JSON: str = ""
+    GSC_SERVICE_ACCOUNT_JSON: str = ""  # file path (legacy)
+    GSC_SERVICE_ACCOUNT_DATA: str = ""  # inline JSON content (preferred in prod)
     INDEXNOW_API_KEY: str = ""
     SECRET_KEY: str = "change-me"
     CREDENTIALS_DIR: str = "./credentials"
@@ -39,3 +42,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def get_global_gsc_credentials() -> dict | None:
+    """Return global GSC credentials as a dict.
+    Prefers GSC_SERVICE_ACCOUNT_DATA (inline JSON), falls back to
+    GSC_SERVICE_ACCOUNT_JSON (file path).
+    """
+    if settings.GSC_SERVICE_ACCOUNT_DATA:
+        try:
+            return json.loads(settings.GSC_SERVICE_ACCOUNT_DATA)
+        except json.JSONDecodeError:
+            pass
+
+    if settings.GSC_SERVICE_ACCOUNT_JSON:
+        path = Path(settings.GSC_SERVICE_ACCOUNT_JSON)
+        if path.exists():
+            try:
+                return json.loads(path.read_text())
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    return None

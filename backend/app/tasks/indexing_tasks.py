@@ -283,7 +283,7 @@ async def _execute_method(db: AsyncSession, url_obj: URL, method: str, job: dict
         sa = await sa_manager.get_next_available()
         if not sa:
             return {"success": False, "error": "no_sa_available"}
-        result = submit_url_google_api(url, sa.json_key_path)
+        result = submit_url_google_api(url, sa.json_key_dict)
         await sa_manager.increment_usage(sa.id, 1)
         return {"success": True, "data": result}
 

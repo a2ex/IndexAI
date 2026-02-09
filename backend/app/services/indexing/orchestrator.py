@@ -36,7 +36,7 @@ class IndexingOrchestrator:
         if sa:
             tasks.append(self._run_method(
                 "google_api",
-                lambda: submit_url_google_api(url, sa.json_key_path),
+                lambda: submit_url_google_api(url, sa.json_key_dict),
             ))
 
         # Method 2: IndexNow (project config or global fallback)
@@ -112,7 +112,7 @@ class IndexingOrchestrator:
         if sa:
             for i in range(0, len(urls), 100):
                 chunk = urls[i : i + 100]
-                batch_result = submit_batch_google_api(chunk, sa.json_key_path)
+                batch_result = submit_batch_google_api(chunk, sa.json_key_dict)
                 results["google_api"].extend(batch_result)
                 await self.sa_manager.increment_usage(sa.id, len(chunk))
 

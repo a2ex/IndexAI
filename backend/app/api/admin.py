@@ -1,6 +1,5 @@
 import uuid
 import json
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,13 +63,6 @@ async def add_service_account(
     if not email:
         raise HTTPException(status_code=400, detail="No client_email found in JSON key")
 
-    # Save the key file
-    creds_dir = Path(settings.CREDENTIALS_DIR)
-    creds_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = name.replace(" ", "_").lower()
-    key_path = creds_dir / f"{safe_name}.json"
-    key_path.write_bytes(content)
-
     # Check if already registered
     existing = await db.execute(
         select(ServiceAccount).where(ServiceAccount.email == email)
@@ -81,7 +73,7 @@ async def add_service_account(
     sa = ServiceAccount(
         name=name,
         email=email,
-        json_key_path=str(key_path),
+        json_key_data=content.decode(),
         daily_quota=daily_quota,
         is_active=True,
     )
@@ -112,11 +104,6 @@ async def delete_service_account(
     if not sa:
         raise HTTPException(status_code=404, detail="Service account not found")
 
-    # Delete key file
-    key_path = Path(sa.json_key_path)
-    if key_path.exists():
-        key_path.unlink()
-
     await db.delete(sa)
     await db.commit()
     return {"message": f"Service account {sa.email} deleted"}
@@ -140,8 +127,8 @@ async def test_service_account(
         from oauth2client.service_account import ServiceAccountCredentials
         import httplib2
 
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            sa.json_key_path,
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+            sa.json_key_dict,
             scopes=["https://www.googleapis.com/auth/indexing"],
         )
         http = credentials.authorize(httplib2.Http())

@@ -13,20 +13,20 @@ SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
 
-def _get_credentials(service_account_json: str):
-    credentials = service_account.Credentials.from_service_account_file(
-        service_account_json, scopes=SCOPES
+def _get_credentials(service_account_info: dict):
+    credentials = service_account.Credentials.from_service_account_info(
+        service_account_info, scopes=SCOPES
     )
     credentials.refresh(Request())
     return credentials
 
 
-def list_sitemaps(site_url: str, service_account_json: str) -> list[dict]:
+def list_sitemaps(site_url: str, service_account_info: dict) -> list[dict]:
     """
     List sitemaps registered in Google Search Console for the given property.
     Returns list of dicts with path, lastSubmitted, isPending, contents (url count).
     """
-    credentials = _get_credentials(service_account_json)
+    credentials = _get_credentials(service_account_info)
     headers = {"Authorization": f"Bearer {credentials.token}"}
 
     # site_url must be URL-encoded in the path

@@ -14,25 +14,27 @@ _sites_cache: dict[str, list[str]] = {}
 _creds_cache: dict[str, service_account.Credentials] = {}
 
 
-def _get_credentials(service_account_json: str):
-    if service_account_json in _creds_cache:
-        creds = _creds_cache[service_account_json]
+def _get_credentials(service_account_info: dict):
+    cache_key = service_account_info.get("client_email", "")
+    if cache_key in _creds_cache:
+        creds = _creds_cache[cache_key]
         if creds.valid:
             return creds
-    creds = service_account.Credentials.from_service_account_file(
-        service_account_json, scopes=SCOPES
+    creds = service_account.Credentials.from_service_account_info(
+        service_account_info, scopes=SCOPES
     )
     creds.refresh(Request())
-    _creds_cache[service_account_json] = creds
+    _creds_cache[cache_key] = creds
     return creds
 
 
-def _list_gsc_sites(service_account_json: str) -> list[str]:
+def _list_gsc_sites(service_account_info: dict) -> list[str]:
     """List all GSC site URLs accessible by the service account (cached)."""
-    if service_account_json in _sites_cache:
-        return _sites_cache[service_account_json]
+    cache_key = service_account_info.get("client_email", "")
+    if cache_key in _sites_cache:
+        return _sites_cache[cache_key]
 
-    credentials = _get_credentials(service_account_json)
+    credentials = _get_credentials(service_account_info)
     resp = requests.get(
         "https://www.googleapis.com/webmasters/v3/sites",
         headers={"Authorization": f"Bearer {credentials.token}"},
@@ -40,17 +42,17 @@ def _list_gsc_sites(service_account_json: str) -> list[str]:
     )
     if resp.status_code == 200:
         sites = [s["siteUrl"] for s in resp.json().get("siteEntry", [])]
-        _sites_cache[service_account_json] = sites
+        _sites_cache[cache_key] = sites
         return sites
     return []
 
 
-def _match_gsc_property(url: str, service_account_json: str, default_site_url: str) -> str:
+def _match_gsc_property(url: str, service_account_info: dict, default_site_url: str) -> str:
     """Find the GSC property that matches the URL's domain."""
     parsed = urlparse(url)
     hostname = parsed.hostname or ""
 
-    sites = _list_gsc_sites(service_account_json)
+    sites = _list_gsc_sites(service_account_info)
     for site in sites:
         site_host = urlparse(site).hostname or ""
         # Match: URL host equals or is subdomain of site host
@@ -61,15 +63,15 @@ def _match_gsc_property(url: str, service_account_json: str, default_site_url: s
 
 
 def check_indexed_gsc_inspection(
-    url: str, site_url: str, service_account_json: str
+    url: str, site_url: str, service_account_info: dict
 ) -> dict:
     """
     Check indexation status via GSC URL Inspection API.
     Automatically selects the right GSC property for the URL's domain.
     Quota: 2000 requests/day/property, 600/minute.
     """
-    matched_property = _match_gsc_property(url, service_account_json, site_url)
-    credentials = _get_credentials(service_account_json)
+    matched_property = _match_gsc_property(url, service_account_info, site_url)
+    credentials = _get_credentials(service_account_info)
 
     api_url = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
     headers = {"Authorization": f"Bearer {credentials.token}"}
